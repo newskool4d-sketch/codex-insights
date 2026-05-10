@@ -259,7 +259,7 @@ if ($errorCounts.ContainsKey('401') -or $errorCounts.ContainsKey('403') -or $err
     $recommendations.Add([pscustomobject]@{
         Action='Connector/auth preflight before connector-heavy work'
         When='Notion, Google Drive, GitHub, Obsidian, Gmail, Excel, MCP work; 401/403/OAuth/permission signals'
-        Command='powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-env-audit\scripts\Invoke-CodexEnvAudit.ps1'
+        Command='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-env-audit\scripts\Invoke-CodexEnvAudit.ps1"'
         Why='Fail fast on auth/permission gaps before investing in the main task.'
     }) | Out-Null
 }
@@ -283,7 +283,7 @@ if ($avgTools -gt 8) {
     $recommendations.Add([pscustomobject]@{
         Action='Replace long probing sequences with one structured audit'
         When='Many Get-Content/Get-ChildItem/Select-String calls are used just to learn current state'
-        Command='powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1 -Limit 30 -OutputDir <writable-path>'
+        Command='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir <writable-path>'
         Why='Keeps exploration bounded and makes repeated checks comparable over time.'
     }) | Out-Null
 }

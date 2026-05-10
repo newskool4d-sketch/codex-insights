@@ -16,7 +16,8 @@ This skill analyzes local Codex data and produces a concise Markdown report cove
 - usage volume and cadence
 - common work themes
 - tool and command patterns
-- friction/error signals`n- inefficient or disruptive command patterns
+- friction/error signals
+- inefficient or disruptive command patterns
 - environment health references
 - practical improvement recommendations with command or prompt examples
 
@@ -26,10 +27,10 @@ Use `vibe-sunsang-codex` when the user wants mentoring or request-quality coachi
 
 Default sources:
 
-- `C:\Users\홍주형\.codex\sessions\YYYY\MM\DD\*.jsonl`
-- `C:\Users\홍주형\.codex\history.jsonl`
-- `C:\Users\홍주형\.codex\session_index.jsonl`
-- `C:\Users\홍주형\.codex\reports\*.md`
+- `$env:USERPROFILE\.codex\sessions\YYYY\MM\DD\*.jsonl`
+- `$env:USERPROFILE\.codex\history.jsonl`
+- `$env:USERPROFILE\.codex\session_index.jsonl`
+- `$env:USERPROFILE\.codex\reports\*.md`
 
 The script reads session logs but does not print secrets. It ignores large system prompts and focuses on user/assistant messages, tool calls, tool outputs, and error signals.
 
@@ -39,7 +40,7 @@ The script reads session logs but does not print secrets. It ignores large syste
 2. Run the report script:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1 -Limit 50
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 50
 ```
 
 3. Read the generated report, then add human judgment when the user asks for interpretation.
@@ -50,13 +51,13 @@ powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-
 
 ```powershell
 # Recent 30 sessions
-powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1 -Limit 30
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30
 
 # Specific date range
-powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1 -Since 2026-05-01 -Until 2026-05-10
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Since 2026-05-01 -Until 2026-05-10
 
 # Custom output directory
-powershell -ExecutionPolicy Bypass -File C:\Users\홍주형\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1 -OutputDir C:\Users\홍주형\.codex\reports
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -OutputDir "$env:USERPROFILE\.codex\reports"
 ```
 
 ## Report Reading Rules
@@ -75,5 +76,5 @@ The default output location is outside normal workspace-write roots. In sandboxe
 Reports are written by default to:
 
 ```text
-C:\Users\홍주형\.codex\reports\codex-insights-YYYYMMDD-HHMMSS.md
+%USERPROFILE%\.codex\reports\codex-insights-YYYYMMDD-HHMMSS.md
 ```

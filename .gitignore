@@ -1,0 +1,12 @@
+.codex/
+reports/
+sessions/
+history.jsonl
+session_index.jsonl
+*.log
+*.tmp
+*.bak
+auth.json
+cap_sid
+*.sqlite
+*.db
