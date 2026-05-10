@@ -111,6 +111,42 @@ function Top-Lines {
     return $items | ForEach-Object { "- $($_.Key): $($_.Value)" }
 }
 
+function Get-CounterValue {
+    param($Counter, [string]$Key)
+    if ($Counter.ContainsKey($Key)) { return [int]$Counter[$Key] }
+    return 0
+}
+
+function Get-SumProperty {
+    param($Items, [string]$PropertyName)
+    $sum = 0
+    foreach ($item in @($Items)) { $sum += [int]$item.$PropertyName }
+    return $sum
+}
+
+function Get-AvgProperty {
+    param($Items, [string]$PropertyName)
+    $itemsArray = @($Items)
+    if ($itemsArray.Count -eq 0) { return 0 }
+    return [math]::Round((Get-SumProperty $itemsArray $PropertyName) / $itemsArray.Count, 1)
+}
+
+function Get-AvgSessionMessages {
+    param($Items)
+    $itemsArray = @($Items)
+    if ($itemsArray.Count -eq 0) { return 0 }
+    $sum = 0
+    foreach ($item in $itemsArray) { $sum += ([int]$item.UserMessages + [int]$item.AssistantMessages) }
+    return [math]::Round($sum / $itemsArray.Count, 1)
+}
+
+function Format-Delta {
+    param([double]$Before, [double]$After)
+    $delta = [math]::Round($After - $Before, 1)
+    $sign = if ($delta -gt 0) { '+' } else { '' }
+    return "$Before -> $After ($sign$delta)"
+}
+
 $sessionsPath = [System.IO.Path]::GetFullPath((Resolve-Path -LiteralPath $SessionsRoot).Path)
 $sessionFiles = Get-ChildItem -LiteralPath $sessionsPath -Recurse -Filter '*.jsonl' | Sort-Object LastWriteTime
 
@@ -254,6 +290,86 @@ $msgPerDay = [math]::Round($totalMessages / $days, 1)
 $avgTools = if ($sessions.Count -gt 0) { [math]::Round((($sessions | Measure-Object ToolCalls -Sum).Sum) / $sessions.Count, 1) } else { 0 }
 $errorTotal = if ($errorCounts.Count -gt 0) { ($errorCounts.GetEnumerator() | Measure-Object Value -Sum).Sum } else { 0 }
 
+$trendAnalysis = New-Object System.Collections.Generic.List[object]
+if ($sessions.Count -ge 4) {
+    $splitPoint = [math]::Floor($sessions.Count / 2)
+    $priorSessions = @($sessions | Select-Object -First $splitPoint)
+    $recentSessions = @($sessions | Select-Object -Skip $splitPoint)
+    $priorToolAvg = Get-AvgProperty $priorSessions 'ToolCalls'
+    $recentToolAvg = Get-AvgProperty $recentSessions 'ToolCalls'
+    $priorErrorAvg = Get-AvgProperty $priorSessions 'ErrorSignals'
+    $recentErrorAvg = Get-AvgProperty $recentSessions 'ErrorSignals'
+    $priorMessageAvg = Get-AvgSessionMessages $priorSessions
+    $recentMessageAvg = Get-AvgSessionMessages $recentSessions
+
+    if ($recentToolAvg -gt ($priorToolAvg * 1.2) -and $recentToolAvg -ge 5) {
+        $driver = if ((Get-CounterValue $commandCounts 'Get-Content') + (Get-CounterValue $commandCounts 'Get-ChildItem') + (Get-CounterValue $commandCounts 'Select-String') -gt (Get-CounterValue $commandCounts 'git')) {
+            'More local discovery and file inspection before action'
+        } elseif ((Get-CounterValue $commandCounts 'git') -gt 20) {
+            'More repository publishing or Git state management'
+        } else {
+            'More multi-step execution inside sessions'
+        }
+        $trendAnalysis.Add([pscustomobject]@{
+            Metric='Tool calls per session'
+            Change=(Format-Delta $priorToolAvg $recentToolAvg)
+            LikelyDriver=$driver
+            Evidence="Get-Content: $(Get-CounterValue $commandCounts 'Get-Content'); Get-ChildItem: $(Get-CounterValue $commandCounts 'Get-ChildItem'); git: $(Get-CounterValue $commandCounts 'git')"
+            NextMove='Bundle repeated discovery into one audit command or checklist before editing.'
+        }) | Out-Null
+    }
+    if ($recentErrorAvg -gt ($priorErrorAvg * 1.2) -and $recentErrorAvg -ge 2) {
+        $driver = if ((Get-CounterValue $errorCounts '401') + (Get-CounterValue $errorCounts '403') + (Get-CounterValue $errorCounts 'OAuth') + (Get-CounterValue $errorCounts 'permission') -gt (Get-CounterValue $errorCounts 'Cannot find path')) {
+            'Auth, OAuth, permission, or sandbox boundaries'
+        } elseif ((Get-CounterValue $errorCounts 'Cannot find path') -gt 0) {
+            'Windows path or Korean filename handling'
+        } else {
+            'Repeated command failure before root cause isolation'
+        }
+        $trendAnalysis.Add([pscustomobject]@{
+            Metric='Friction signals per session'
+            Change=(Format-Delta $priorErrorAvg $recentErrorAvg)
+            LikelyDriver=$driver
+            Evidence="401: $(Get-CounterValue $errorCounts '401'); 403: $(Get-CounterValue $errorCounts '403'); permission: $(Get-CounterValue $errorCounts 'permission'); Cannot find path: $(Get-CounterValue $errorCounts 'Cannot find path')"
+            NextMove='Run preflight checks first, then use a 2-3 cause debug loop when a command fails.'
+        }) | Out-Null
+    }
+    if ($recentMessageAvg -gt ($priorMessageAvg * 1.2) -and $recentMessageAvg -ge 8) {
+        $driver = if ((Get-CounterValue $keywordCounts 'skill') -gt 50) {
+            'Skill creation or iterative skill refinement work'
+        } elseif ((Get-CounterValue $workThemes 'Documentation / Markdown') -gt (Get-CounterValue $workThemes 'Coding / implementation')) {
+            'Document/report iteration and formatting decisions'
+        } else {
+            'Larger multi-turn tasks with more review and clarification'
+        }
+        $trendAnalysis.Add([pscustomobject]@{
+            Metric='Messages per session'
+            Change=(Format-Delta $priorMessageAvg $recentMessageAvg)
+            LikelyDriver=$driver
+            Evidence="skill keyword: $(Get-CounterValue $keywordCounts 'skill'); Markdown theme: $(Get-CounterValue $workThemes 'Documentation / Markdown'); coding theme: $(Get-CounterValue $workThemes 'Coding / implementation')"
+            NextMove='Start larger work with one compact acceptance checklist and expected output shape.'
+        }) | Out-Null
+    }
+}
+if ($trendAnalysis.Count -eq 0) {
+    $dominantDriver = if ((Get-CounterValue $errorCounts '401') + (Get-CounterValue $errorCounts '403') + (Get-CounterValue $errorCounts 'OAuth') + (Get-CounterValue $errorCounts 'permission') -gt 0) {
+        'Connector/auth and permission boundaries are the most visible friction driver.'
+    } elseif ($avgTools -gt 8) {
+        'Local discovery depth is the main driver of tool volume.'
+    } elseif ((Get-CounterValue $workThemes 'Documentation / Markdown') -gt 0) {
+        'Document and report production are the main recurring workload.'
+    } else {
+        'No clear increase driver detected in this sample.'
+    }
+    $trendAnalysis.Add([pscustomobject]@{
+        Metric='Overall pattern'
+        Change='No strong recent-half increase detected'
+        LikelyDriver=$dominantDriver
+        Evidence="avg tools/session: $avgTools; friction signals: $errorTotal; top theme count: $((($workThemes.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Value))"
+        NextMove='Keep the baseline and compare again after the next larger work block.'
+    }) | Out-Null
+}
+
 $recommendations = New-Object System.Collections.Generic.List[object]
 if ($errorCounts.ContainsKey('401') -or $errorCounts.ContainsKey('403') -or $errorCounts.ContainsKey('OAuth') -or $errorCounts.ContainsKey('permission')) {
     $recommendations.Add([pscustomobject]@{
@@ -293,6 +409,51 @@ if ($recommendations.Count -eq 0) {
         When='No dominant friction pattern appears in the sample'
         Command='Use codex-closeout-routine at session end and keep verification evidence in the final response.'
         Why='Preserves continuity without adding unnecessary process.'
+    }) | Out-Null
+}
+
+$commandPresets = New-Object System.Collections.Generic.List[object]
+$commandPresets.Add([pscustomobject]@{
+    Name='Recent insights report'
+    UseCase='Quickly review the latest working pattern after a long session'
+    CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 50'
+}) | Out-Null
+$commandPresets.Add([pscustomobject]@{
+    Name='Workspace-safe report'
+    UseCase='When sandbox write access blocks .codex\reports'
+    CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir "$PWD"'
+}) | Out-Null
+$commandPresets.Add([pscustomobject]@{
+    Name='Weekly comparison sample'
+    UseCase='When you want a bounded weekly report instead of the latest-N sessions'
+    CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Since (Get-Date).AddDays(-7) -Until (Get-Date)'
+}) | Out-Null
+if ($errorCounts.ContainsKey('401') -or $errorCounts.ContainsKey('403') -or $errorCounts.ContainsKey('OAuth') -or $errorCounts.ContainsKey('permission')) {
+    $commandPresets.Add([pscustomobject]@{
+        Name='Connector preflight'
+        UseCase='Before Notion, Google Drive, GitHub, Gmail, Obsidian, or MCP-heavy work'
+        CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-env-audit\scripts\Invoke-CodexEnvAudit.ps1"'
+    }) | Out-Null
+}
+if ($commandCounts.ContainsKey('powershell') -or $keywordCounts.ContainsKey('한글')) {
+    $commandPresets.Add([pscustomobject]@{
+        Name='Korean path read check'
+        UseCase='Before editing Korean filenames or Korean-content documents'
+        CopyPaste='$env:PYTHONUTF8="1"; Get-Item -LiteralPath "<absolute-korean-path>"; Get-Content -LiteralPath "<absolute-korean-path>" -Encoding UTF8 -TotalCount 20'
+    }) | Out-Null
+}
+if ($errorCounts.ContainsKey('nonzero exit') -or $errorCounts.ContainsKey('failed') -or $errorCounts.ContainsKey('Exception')) {
+    $commandPresets.Add([pscustomobject]@{
+        Name='Failure triage prompt'
+        UseCase='After the same command fails more than once'
+        CopyPaste='Pause and classify the failure into 2-3 likely causes, run the cheapest confirming check first, then change approach.'
+    }) | Out-Null
+}
+if ($workThemes.ContainsKey('Documentation / Markdown') -or $keywordCounts.ContainsKey('skill')) {
+    $commandPresets.Add([pscustomobject]@{
+        Name='Reusable workflow prompt'
+        UseCase='When the same document, Notion, Obsidian, or report workflow repeats'
+        CopyPaste='Create a small Codex skill/script for this repeated workflow. Include inputs, dry-run behavior, verification, and a short README.'
     }) | Out-Null
 }
 
@@ -387,6 +548,12 @@ $lines.Add('|---|---:|') | Out-Null
 foreach ($item in ($errorCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 10)) { $lines.Add("| ``$((Escape-MdCell ([string]$item.Key)))`` | $($item.Value) |") | Out-Null }
 if ($errorCounts.Count -eq 0) { $lines.Add('| none | 0 |') | Out-Null }
 $lines.Add('') | Out-Null
+$lines.Add('## Why Counts Changed') | Out-Null
+$lines.Add('') | Out-Null
+$lines.Add('| Metric | Recent change | Likely driver | Evidence | Next move |') | Out-Null
+$lines.Add('|---|---|---|---|---|') | Out-Null
+foreach ($trend in $trendAnalysis) { $lines.Add("| $((Escape-MdCell ([string]$trend.Metric))) | $((Escape-MdCell ([string]$trend.Change))) | $((Escape-MdCell ([string]$trend.LikelyDriver))) | $((Escape-MdCell ([string]$trend.Evidence))) | $((Escape-MdCell ([string]$trend.NextMove))) |") | Out-Null }
+$lines.Add('') | Out-Null
 $lines.Add('## Recurring Keywords') | Out-Null
 $lines.Add('') | Out-Null
 $lines.Add('| Keyword | Count |') | Out-Null
@@ -399,6 +566,12 @@ $lines.Add('') | Out-Null
 $lines.Add('| Recommendation | When to use | Command / Prompt | Expected effect |') | Out-Null
 $lines.Add('|---|---|---|---|') | Out-Null
 foreach ($rec in $recommendations) { $lines.Add("| $((Escape-MdCell ([string]$rec.Action))) | $((Escape-MdCell ([string]$rec.When))) | ``$((Escape-MdCell ([string]$rec.Command)))`` | $((Escape-MdCell ([string]$rec.Why))) |") | Out-Null }
+$lines.Add('') | Out-Null
+$lines.Add('## Copy/Paste Command Presets') | Out-Null
+$lines.Add('') | Out-Null
+$lines.Add('| Preset | Use case | Copy/paste |') | Out-Null
+$lines.Add('|---|---|---|') | Out-Null
+foreach ($preset in $commandPresets) { $lines.Add("| $((Escape-MdCell ([string]$preset.Name))) | $((Escape-MdCell ([string]$preset.UseCase))) | ``$((Escape-MdCell ([string]$preset.CopyPaste)))`` |") | Out-Null }
 $lines.Add('') | Out-Null
 $lines.Add('## Inefficient Or Disruptive Signals') | Out-Null
 $lines.Add('') | Out-Null

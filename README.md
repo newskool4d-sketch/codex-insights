@@ -9,8 +9,10 @@ Codex 세션 로그를 분석해 Claude Code `/insights`와 비슷한 사용 분
 - 도구 사용 패턴
 - 주요 shell command 패턴
 - 오류와 마찰 신호
+- 최근 절반 세션과 이전 절반 세션의 변화 원인 후보
 - 반복 키워드
 - 실행 명령이 포함된 추천 사항
+- 바로 복붙 가능한 실행 프리셋
 - 비효율적이거나 작업에 차질을 줄 수 있는 신호
 
 ## 구성
@@ -85,10 +87,24 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 | Tool Usage | Codex tool 사용 빈도 |
 | Command Heads | PowerShell/shell command 앞부분 기준 사용 빈도 |
 | Friction Signals | 오류, 권한, sandbox, OAuth 등 마찰 신호 |
+| Why Counts Changed | 최근 절반과 이전 절반을 비교해 수치 증가 원인 후보 분류 |
 | Recurring Keywords | 반복 키워드 |
 | Recommendations With Commands | 실행 명령이 포함된 추천 사항 |
+| Copy/Paste Command Presets | 상황별로 바로 실행하거나 지시할 수 있는 프리셋 |
 | Inefficient Or Disruptive Signals | 비효율 또는 작업 차질 신호와 개선 행동 |
 | Environment Audit References | 최근 codex-env-audit 보고서 참조 |
+
+## 해석 방식
+
+`Why Counts Changed`는 단순 누적값이 아니라 최근 절반 세션과 이전 절반 세션의 평균을 비교합니다. 도구 호출, 마찰 신호, 메시지 수가 늘었을 때 다음 원인 후보를 함께 표시합니다.
+
+- 로컬 파일 탐색과 상태 확인이 늘어난 경우
+- Git/GitHub 공개·배포 작업이 늘어난 경우
+- OAuth, 권한, sandbox 경계 문제가 늘어난 경우
+- Windows 경로, 한글 파일명, UTF-8 처리 문제가 늘어난 경우
+- skill 제작이나 문서 반복 수정이 늘어난 경우
+
+`Copy/Paste Command Presets`는 리포트를 읽은 뒤 바로 실행할 수 있는 명령어 또는 Codex에 그대로 줄 수 있는 작업 지시문입니다.
 
 ## 함께 쓰면 좋은 skill
 

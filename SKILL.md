@@ -17,9 +17,11 @@ This skill analyzes local Codex data and produces a concise Markdown report cove
 - common work themes
 - tool and command patterns
 - friction/error signals
+- recent-half vs prior-half change drivers
 - inefficient or disruptive command patterns
 - environment health references
 - practical improvement recommendations with command or prompt examples
+- copy/paste command presets for common follow-up actions
 
 Use `vibe-sunsang-codex` when the user wants mentoring or request-quality coaching. Use `codex-env-audit` when the user wants environment health checks. Use this skill when the user wants an insights-style report that combines usage patterns and operational implications.
 
@@ -63,9 +65,11 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 ## Report Reading Rules
 
 - Treat counts as directional, not perfect telemetry.
+- Use the "Why Counts Changed" section to separate volume increases from likely causes.
 - Distinguish local environment issues from model behavior issues.
 - Do not overstate conclusions from small samples.
 - Prefer concrete next actions over generic advice.
+- Prefer copy/paste presets when the user asks what to run next.
 - Mention whether connector OAuth was actually tested or only inferred from logs.
 
 ## Sandbox Note
