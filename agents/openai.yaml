@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Insights"
+  short_description: "Codex 사용량·작업 패턴·마찰 요인 리포트"
+  default_prompt: "Use $codex-insights to generate a Codex usage insights report from recent local sessions."
+policy:
+  allow_implicit_invocation: true
