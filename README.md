@@ -106,12 +106,6 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 
 `Copy/Paste Command Presets`는 리포트를 읽은 뒤 바로 실행할 수 있는 명령어 또는 Codex에 그대로 줄 수 있는 작업 지시문입니다.
 
-## 함께 쓰면 좋은 skill
-
-- `codex-env-audit`: 인증, 권한, MCP, skill, scheduled task 등 환경 점검
-- `vibe-sunsang-codex`: 요청 품질, 회고, 성장 분석
-- `codex-closeout-routine`: 세션 종료 기록과 handoff 정리
-
 ## 주의 사항
 
 - 이 스킬은 세션 로그를 분석하지만, 인증 토큰이나 secret 값을 출력하도록 설계되어 있지 않습니다.
