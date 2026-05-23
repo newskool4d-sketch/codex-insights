@@ -10,6 +10,7 @@ Codex 세션 로그를 분석해 Claude Code `/insights`와 비슷한 사용 분
 - 주요 shell command 패턴
 - 오류와 마찰 신호
 - 최근 절반 세션과 이전 절반 세션의 변화 원인 후보
+- 전문가 관점의 요약 진단(운영 모드, 주요 리스크, 신뢰도, 다음 행동)
 - 반복 키워드
 - 실행 명령이 포함된 추천 사항
 - 바로 복붙 가능한 실행 프리셋
@@ -67,13 +68,13 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 기본 출력 위치는 다음과 같습니다.
 
 ```text
-%USERPROFILE%\.codex\reports
+%USERPROFILE%\.codex\memories\reports
 ```
 
-sandbox나 권한 문제로 `.codex\reports`에 쓸 수 없을 때는 `-OutputDir`를 지정합니다.
+sandbox나 권한 문제로 다른 위치에 쓸 수 없을 때는 기본 위치를 사용합니다. 별도 위치가 필요하면 `-OutputDir`를 지정합니다.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir "$PWD"
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir "$env:USERPROFILE\.codex\memories\reports"
 ```
 
 ## 보고서 섹션
@@ -83,6 +84,7 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 | Section | Description |
 |---|---|
 | At A Glance | 메시지, 이벤트, 평균 도구 호출, 오류 신호 요약 |
+| Expert Triage | 운영 모드, 주요 작업 주제, 마찰 리스크, 추천 다음 행동, 신뢰도 요약 |
 | Work Themes | 작업 주제별 빈도 |
 | Tool Usage | Codex tool 사용 빈도 |
 | Command Heads | PowerShell/shell command 앞부분 기준 사용 빈도 |
@@ -105,6 +107,20 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-i
 - skill 제작이나 문서 반복 수정이 늘어난 경우
 
 `Copy/Paste Command Presets`는 리포트를 읽은 뒤 바로 실행할 수 있는 명령어 또는 Codex에 그대로 줄 수 있는 작업 지시문입니다.
+
+`Expert Triage`는 보고서 상단의 빠른 의사결정용 요약입니다. 수치를 그대로 나열하지 않고, 현재 Codex 사용 패턴을 운영 관점에서 분류합니다.
+
+- `Primary operating mode`: 최근 작업이 안정적 사용인지, 탐색이 많은 상태인지, 환경 마찰이 큰 상태인지 구분합니다.
+- `Dominant work theme`: 가장 자주 등장한 작업 유형을 보여줍니다.
+- `Main friction risk`: 가장 많이 보이는 병목이나 실패 위험을 요약합니다.
+- `Best next action`: 바로 실행할 후속 행동 하나를 추천합니다.
+- `Confidence`: 세션 수와 신호 강도를 기준으로 해석 신뢰도를 표시합니다.
+
+## 함께 쓰면 좋은 skill
+
+- `codex-env-audit`: 인증, 권한, MCP, skill, scheduled task 등 환경 점검
+- `vibe-sunsang-codex`: 요청 품질, 회고, 성장 분석
+- `codex-closeout-routine`: 세션 종료 기록과 handoff 정리
 
 ## 주의 사항
 
