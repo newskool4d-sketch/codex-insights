@@ -1,6 +1,6 @@
 interface:
   display_name: "Codex Insights"
-  short_description: "Codex 사용량·작업 패턴·마찰 요인 리포트"
-  default_prompt: "Use $codex-insights to generate a Codex usage insights report from recent local sessions."
+  short_description: "Codex 사용량·작업 패턴·마찰 요인 HTML 대시보드 (Claude /insights 스타일)"
+  default_prompt: "Use $codex-insights to generate a Claude Code /insights-style HTML dashboard from recent local sessions: run the pipeline, classify pending session facets, write the narrative, and render the report."
 policy:
   allow_implicit_invocation: true

@@ -6,6 +6,8 @@ session_index.jsonl
 *.log
 *.tmp
 *.bak
+__pycache__/
+*.pyc
 auth.json
 cap_sid
 *.sqlite

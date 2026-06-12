@@ -2,8 +2,8 @@
     [string]$SessionsRoot = "$env:USERPROFILE\.codex\sessions",
     [string]$HistoryPath = "$env:USERPROFILE\.codex\history.jsonl",
     [string]$SessionIndexPath = "$env:USERPROFILE\.codex\session_index.jsonl",
-    [string]$ReportsRoot = "$env:USERPROFILE\.codex\reports",
-    [string]$OutputDir = "$env:USERPROFILE\.codex\reports",
+    [string]$ReportsRoot = "$env:USERPROFILE\.codex\memories\reports",
+    [string]$OutputDir = "$env:USERPROFILE\.codex\memories\reports",
     [int]$Limit = 50,
     [datetime]$Since,
     [datetime]$Until
@@ -399,7 +399,7 @@ if ($avgTools -gt 8) {
     $recommendations.Add([pscustomobject]@{
         Action='Replace long probing sequences with one structured audit'
         When='Many Get-Content/Get-ChildItem/Select-String calls are used just to learn current state'
-        Command='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir <writable-path>'
+        Command='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30'
         Why='Keeps exploration bounded and makes repeated checks comparable over time.'
     }) | Out-Null
 }
@@ -420,8 +420,8 @@ $commandPresets.Add([pscustomobject]@{
 }) | Out-Null
 $commandPresets.Add([pscustomobject]@{
     Name='Workspace-safe report'
-    UseCase='When sandbox write access blocks .codex\reports'
-    CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30 -OutputDir "$PWD"'
+    UseCase='When you need the sandbox-writable default report location'
+    CopyPaste='powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\codex-insights\scripts\New-CodexInsightsReport.ps1" -Limit 30'
 }) | Out-Null
 $commandPresets.Add([pscustomobject]@{
     Name='Weekly comparison sample'
@@ -499,6 +499,50 @@ if ($inefficientSignals.Count -eq 0) {
     }) | Out-Null
 }
 
+$topThemeItem = $workThemes.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1
+$topTheme = if ($topThemeItem) { "$($topThemeItem.Key) ($($topThemeItem.Value))" } else { 'No dominant theme detected' }
+$specificFrictionItems = @($errorCounts.GetEnumerator() | Where-Object { $_.Key -notin @('error','failed') } | Sort-Object Value -Descending)
+$topFrictionItem = if ($specificFrictionItems.Count -gt 0) {
+    $specificFrictionItems | Select-Object -First 1
+} else {
+    $errorCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1
+}
+$topFriction = if ($topFrictionItem) { "$($topFrictionItem.Key) ($($topFrictionItem.Value))" } else { 'No dominant friction signal detected' }
+$topRecommendation = if ($recommendations.Count -gt 0) { [string]$recommendations[0].Action } else { 'Keep monitoring with the current routine' }
+$frictionPerSession = if ($sessions.Count -gt 0) { [math]::Round($errorTotal / $sessions.Count, 1) } else { 0 }
+$authFriction = (Get-CounterValue $errorCounts '401') + (Get-CounterValue $errorCounts '403') + (Get-CounterValue $errorCounts 'OAuth') + (Get-CounterValue $errorCounts 'permission')
+$pathFriction = (Get-CounterValue $errorCounts 'Cannot find path') + (Get-CounterValue $errorCounts 'denied') + (Get-CounterValue $errorCounts 'sandbox')
+
+if ($authFriction -gt 0) {
+    $operatingMode = 'Integration-boundary risk'
+    $expertNextMove = 'Run connector/auth preflight before the next connector-heavy task.'
+} elseif ($frictionPerSession -ge 3) {
+    $operatingMode = 'High-friction execution'
+    $expertNextMove = 'Pause repeated command attempts and use a short root-cause triage loop.'
+} elseif ($pathFriction -gt 0) {
+    $operatingMode = 'Local environment fragility'
+    $expertNextMove = 'Use Windows-safe paths, -LiteralPath, and UTF-8 checks before file edits.'
+} elseif ($avgTools -gt 8) {
+    $operatingMode = 'Discovery-heavy work'
+    $expertNextMove = 'Bundle repeated inspection into one audit pass before implementation.'
+} elseif ((Get-CounterValue $workThemes 'Documentation / Markdown') -gt 0) {
+    $operatingMode = 'Document-production workflow'
+    $expertNextMove = 'Promote repeated document/report flows into reusable skills or templates.'
+} else {
+    $operatingMode = 'Stable baseline'
+    $expertNextMove = 'Keep the baseline and compare again after the next larger work block.'
+}
+
+$confidence = if ($sessions.Count -ge 30 -and $totalMessages -ge 100) {
+    'Medium-high'
+} elseif ($sessions.Count -ge 10) {
+    'Medium'
+} elseif ($sessions.Count -gt 0) {
+    'Low; small sample'
+} else {
+    'Low; no sessions analyzed'
+}
+
 $lines = New-Object System.Collections.Generic.List[string]
 $lines.Add('# Codex Insights Report') | Out-Null
 $lines.Add('') | Out-Null
@@ -507,6 +551,18 @@ $lines.Add("- Scope: $($sessions.Count) session files") | Out-Null
 $lines.Add("- Period: $period") | Out-Null
 $lines.Add("- History entries: $historyCount") | Out-Null
 $lines.Add("- Session index entries: $sessionIndexCount") | Out-Null
+$lines.Add('') | Out-Null
+$lines.Add('## Expert Triage') | Out-Null
+$lines.Add('') | Out-Null
+$lines.Add('| Lens | Assessment |') | Out-Null
+$lines.Add('|---|---|') | Out-Null
+$lines.Add("| Primary operating mode | $((Escape-MdCell $operatingMode)) |") | Out-Null
+$lines.Add("| Dominant work theme | $((Escape-MdCell $topTheme)) |") | Out-Null
+$lines.Add("| Main friction risk | $((Escape-MdCell $topFriction)) |") | Out-Null
+$lines.Add("| Friction density | $frictionPerSession signals/session |") | Out-Null
+$lines.Add("| Best next action | $((Escape-MdCell $expertNextMove)) |") | Out-Null
+$lines.Add("| Recommendation anchor | $((Escape-MdCell $topRecommendation)) |") | Out-Null
+$lines.Add("| Confidence | $((Escape-MdCell $confidence)) |") | Out-Null
 $lines.Add('') | Out-Null
 $lines.Add('## At A Glance') | Out-Null
 $lines.Add('') | Out-Null
